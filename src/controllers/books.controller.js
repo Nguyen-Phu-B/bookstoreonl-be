@@ -72,6 +72,57 @@ const BooksController = {
         res.status(200).json(topBooks.docs);
     }),
 
+    getBooksByKind: asyncHandler(async (req, res) => {
+        const { kind } = req.params;
+        const { page, pageSize } = req.query;
+
+        const skip = Math.max(page - 1, 0) * pageSize;
+        console.log("🚀 ~ getBooksByKind:asyncHandler ~ skip:", skip);
+
+        const filterBooksByKind = async (paramKind, skip, limit) => {
+            try {
+                const allBooks = await BooksModel.find();
+
+                const totalBooks = await allBooks.filter((book) => {
+                    const formatKinds = book.kinds.map((kind) =>
+                        kind
+                            .normalize("NFD")
+                            .replace(/[\u0300-\u036f]/g, "")
+                            .toLowerCase()
+                            .replace(/\s+/g, "")
+                            .replace(/đ/g, "d")
+                    );
+                    return formatKinds.includes(paramKind.toLowerCase().trim());
+                }).length;
+
+                const totalPages = Math.ceil(totalBooks / pageSize);
+
+                const filterBooks = allBooks
+                    .filter((book) => {
+                        const formatKinds = book.kinds.map((kind) =>
+                            kind
+                                .normalize("NFD")
+                                .replace(/[\u0300-\u036f]/g, "")
+                                .toLowerCase()
+                                .replace(/\s+/g, "")
+                                .replace(/đ/g, "d")
+                        );
+                        return formatKinds.includes(paramKind.toLowerCase().trim());
+                    })
+                    .slice(skip, skip + parseInt(limit));
+
+                return { filterBooks, totalPages };
+            } catch (error) {
+                console.log("🚀 ~ filterBooksByKind ~ error:", error);
+            }
+        };
+
+        const books = await filterBooksByKind(kind, skip, pageSize);
+        console.log("🚀 ~ getBooksByKind:asyncHandler ~ pageSize:", pageSize);
+
+        res.status(200).json(books);
+    }),
+
     getAllKinds: asyncHandler(async (req, res) => {
         const allKinds = await BooksModel.distinct("kinds");
 
